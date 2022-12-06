@@ -16,13 +16,40 @@ const handleListen = () => console.log('Listening on http://localhost:3000');
 const httpServer = http.createServer(app);
 const socketIoServer = SocketIO(httpServer);
 
-socketIoServer.on("connection", socket => {
-    socket.on("enter_room", (msg, done) => {
-        console.log(msg);
-        setTimeout(() => {
-            done();
-        }, 10000);
+function publicRooms() {
+    const {
+        sockets: {
+            adapter: { sids, rooms },
+        },
+    } = socketIoServer;
+    const publicRooms = [];
+    rooms.forEach((_, key) => {
+        if(sids.get(key) === undefined) {
+            publicRooms.push(key);
+        }
     });
+    return publicRooms;
+}
+
+socketIoServer.on("connection", socket => {
+    socket["nickname"] = "익명";
+    socket.onAny((event) => {
+        console.log(socketIoServer.sockets.adapter);
+        console.log(`Socket Event: ${event}`);
+    })
+    socket.on("enter_room", (roomName, done) => {
+        socket.join(roomName);
+        done();
+        socket.to(roomName).emit("welcome", socket.nickname);
+    });
+    socket.on("disconnecting", () => {
+        socket.rooms.forEach((room) => socket.to(room).emit("bye", socket.nickname));
+    });
+    socket.on("new_message", (msg, room, done) => {
+        socket.to(room).emit("new_message", `${socket.nickname}: ${msg}`);
+        done();
+    })
+    socket.on("nickname", (nickname) => socket["nickname"] = nickname);
 });
 
 function onSocketClose() {

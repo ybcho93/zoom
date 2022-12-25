@@ -1,6 +1,6 @@
 import http from "http";
 //import WebSocket from "ws";
-import { Server } from "socket.io";
+import SocketIO from "socket.io";
 import { instrument } from "@socket.io/admin-ui";
 import express from "express";
 
@@ -12,15 +12,35 @@ app.use("/public", express.static(__dirname + "/public"));
 app.get("/", (req, res) => res.render("home"));
 app.get("/*", (req, res) => res.redirect("/"));
 
-const handleListen = () => console.log('Listening on http://localhost:3000');
+
 
 const httpServer = http.createServer(app);
+const wsServer = SocketIO(httpServer);
+
+wsServer.on("connection", socket => {
+    socket.on("join_room", (roomName) => {
+        socket.join(roomName);
+        socket.to(roomName).emit("welcome");
+    });
+    socket.on("offer", (offer, roomName) => {
+        socket.to(roomName).emit("offer", offer);
+    });
+})
+
+const handleListen = () => console.log('Listening on http://localhost:3000');
+httpServer.listen(3000, handleListen);
+
+
+
+
+/* ***********채팅 만들기 2****************
 const socketIoServer = new Server (httpServer, {
-    cors: {
+    cors: { 
         origin: ["https://admin.socket.io"],
         credentials: true
       }
 });
+
 
 instrument(socketIoServer, {
     auth: false,
@@ -73,9 +93,9 @@ socketIoServer.on("connection", socket => {
 
 function onSocketClose() {
     console.log("Disconnected from the Browser. ✖");
-}
+} */
 
-/*
+/* ***********채팅 만들기 1****************
 
 const wss = new WebSocket.Server({ server });
 
@@ -99,6 +119,3 @@ wss.on("connection", (socket) => {
     });
     socket.send("hello!!");
 }); */
-
-httpServer.listen(3000, handleListen);
-
